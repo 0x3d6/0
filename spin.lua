@@ -1,4 +1,17 @@
-local m = peripheral.wrap("top")
+local gamemon = term
+
+if ccemux then
+  gamemon.setTextScale = function() end
+else
+  if peripheral.find("top") then
+    gamemon = peripheral.wrap("top")
+  end
+end
+
+
+
+local m = term
+if peripheral.find("top") then m = peripheral.wrap("top") end
 local stc = m.setTextColor
 local sbg = m.setBackgroundColor
 local c = colors
@@ -130,7 +143,7 @@ local function sym(a,fr)
     w(a)
   end
   w = m.write
-end
+end--[[
 m2.setTextScale(.5)
 m2.setBackgroundColor(colors.white)
 m2.clear()
@@ -156,35 +169,35 @@ m2.setBackgroundColor(colors.red)
 m2.setTextColor(colors.white)
 m2.write(string.rep(" ",70))
 m2.setCursorPos(1,38)
-m2.write("Please stay behind this line when someone else is playing")
-m.setTextScale(.5)
-m.setBackgroundColor(colors.white)
-m.clear()
-m.setBackgroundColor(colors.lightGray)
-m.setCursorPos(1,2)
-m.setTextColor(colors.black)
-m.write("              ")
-m.setCursorPos(3,3)
-m.clearLine()
---m.setBackgroundColor(colors.lime)
-m.setCursorPos(1,8)
---m.clearLine()
-m.write("              ")
-m.setCursorPos(1,9)
-m.clearLine()
-m.setBackgroundColor(colors.gray)
-m.setCursorPos(1,1)
-m.clearLine()
-for i=2,10 do
-m.setCursorPos(1,i)
-m.write(" ")
-m.setCursorPos(15,i)
-m.write(" ")
+m2.write("Please stay behind this line when someone else is playing")]]
+--m.setTextScale(.5)
+local function drawBorders()
+  gamemon.setBackgroundColor(colors.white)
+  gamemon.clear()
+  gamemon.setBackgroundColor(colors.lightGray)
+  gamemon.setCursorPos(1,2)
+  gamemon.setTextColor(colors.black)
+  gamemon.write((" "):rep(14))
+  gamemon.setCursorPos(3,3)
+  gamemon.clearLine()
+  gamemon.setCursorPos(1,8)
+  gamemon.write((" "):rep(14))
+  gamemon.setCursorPos(1,9)
+  gamemon.clearLine()
+  gamemon.setBackgroundColor(colors.gray)
+  gamemon.setCursorPos(1,1)
+  gamemon.clearLine()
+  for i=2,10 do
+    gamemon.setCursorPos(1,i)
+    gamemon.write(" ")
+    gamemon.setCursorPos(15,i)
+    gamemon.write(" ")
+  end
+  gamemon.clearLine()
 end
-m.clearLine()
-local function clearreels()
+local function clearReels()
 for i=4,7 do
-  m.setCursorPos(2,i)
+  gamemon.setCursorPos(2,i)
   sbg(colors.white)
   stc(c.lightGray)
   w("\149   |   |   ")
@@ -193,7 +206,8 @@ for i=4,7 do
   w("\149")
 end
 end
-clearreels()
+drawBorders()
+clearReels()
 local function rand(fr)
   local a, b, c
   if fr >= 4 then a = final[1] else a = math.random(8) end
@@ -203,16 +217,17 @@ local function rand(fr)
 end
 --os.sleep(5)
 local function dospin()
-modem.open(os.getComputerID())
-modem.transmit(1,os.getComputerID(),"64 iron")
-local _, _, _, _, msg = os.pullEvent("modem_message")
-modem.close(os.getComputerID())
+--modem.open(os.getComputerID())
+--modem.transmit(1,os.getComputerID(),"64 iron")
+--local _, _, _, _, msg = os.pullEvent("modem_message")
+msg = "111"
+--modem.close(os.getComputerID())
 final = {tonumber(msg:sub(1,1)),tonumber(msg:sub(2,2)),tonumber(msg:sub(3,3))}
 r1 = rand(0)
 r2 = rand(0)
 for k=-5,16 do
 for f=-2,0 do
-  clearreels()
+  clearReels()
   --if f == 0 then r2 = {2,2,2} end
   for i=1,3 do
     if k > 5*i then
@@ -231,9 +246,9 @@ r2 = r1
 r1 = rand(k)
 if k>0 and k%5 == 0 then
 if ((k == 15) and (final[1] == final[2] and final[2] == final[3])) or (final[math.floor(k/5)] == 1) then
-  s2.playSound("entity.experience_orb.pickup",.5,1.2)
+  --s2.playSound("entity.experience_orb.pickup",.5,1.2)
 end
-s.playSound("entity.experience_orb.pickup",.5,.5)
+--s.playSound("entity.experience_orb.pickup",.5,.5)
 else
 --s.playNote("piano",1)
 end
