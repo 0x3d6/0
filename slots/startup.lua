@@ -7,12 +7,11 @@ if not ccemux then
   end
 end
 
-local symbols = require("config")
+local configTable = require("config")
+local config = configTable[1]
+local symbols = configTable[2]
 local symbolsList = {}
 local symbolCount = 0
-
-local config = {}
-config.extraSpinTime = 5
 
 local reelResult = {"SEVEN", "SEVEN", "SEVEN"}
 
@@ -40,17 +39,12 @@ for symbolName, symbol in pairs(symbols) do
 end
 
 assert(symbolCount > 1, "Not enough symbols") -- A game of chance would not be possible if only one symbol is defined
-
+assert(config.extraSpinTime >= -4, "extraSpinTime is too low")
 
 
 
 -- <silliness>
-local m = term
-if peripheral.find("top") then m = peripheral.wrap("top") end
-local stc = m.setTextColor
-local sbg = m.setBackgroundColor
 local c = colors
-local w = m.write
 local s = peripheral.wrap("right")
 local s2 =peripheral.wrap("left")
 local modem = peripheral.wrap("bottom")
@@ -139,9 +133,9 @@ end
 drawBorders()
 clearReels()
 
-local function getRandomSymbols(frameNumber)
+local function getRandomSymbols(animationRow)
   local symbolOutput = {}
-  local landedSymbols = math.floor((frameNumber + 1) / 5) -- The number of symbols that have now stopped moving
+  local landedSymbols = math.floor((animationRow + 1) / 5) -- The number of symbols that have now stopped moving
 
   for idx = 1, 3 do -- We need to pick a symbol for each of the three reels
     if idx > landedSymbols then
@@ -153,35 +147,41 @@ local function getRandomSymbols(frameNumber)
 
   return symbolOutput
 end
---os.sleep(5)
---modem.open(os.getComputerID())
---modem.transmit(1,os.getComputerID(),"64 iron")
---local _, _, _, _, msg = os.pullEvent("modem_message")
---modem.close(os.getComputerID())
-local function dospin()
-  local r1 = getRandomSymbols(0)
-  local r2 = getRandomSymbols(0)
-  for frameNumber = 0 - config.extraSpinTime, 16 do
-    for f=-2,0 do
-      clearReels()
-      --if f == 0 then r2 = {2,2,2} end
-      for i=1,3 do
-        if frameNumber > 5*i then
-          m.setCursorPos(4*i-1,5)
-          drawSymbol(r1[i])
-        else
-        m.setCursorPos(4*i-1,5+f)
-        drawSymbol(r1[i])
-        m.setCursorPos(4*i-1,5+f+3)
-        drawSymbol(r2[i])
+
+local function animateSpin()
+  local reelCache = {getRandomSymbols(0), getRandomSymbols(0)}
+
+  for animationRow = 0 - config.extraSpinTime, 16 do -- We're looping over "rows" of symbols that slide down the screen
+    for frame=-2,0 do
+      for symbolInstance = 1, 6 do -- We can have up to six symbols on the screen at once
+        -- Determine which column and layer this symbol belongs to
+        local column = (symbolInstance - 1) % 3 + 1
+        local layer = math.floor((symbolInstance - 1) / 3) + 1
+
+        -- And get the exact coordinates from that information
+        local x = 4 * column - 1
+        local y = 3 * layer + frame + 2
+        reelsMonitor.setCursorPos(x,y)
+
+        if animationRow <= 5 * column then -- Stop animating this column when we stop on a symbol!
+          drawSymbol(reelCache[layer][column])
+
+          -- Erase the little spaces in between the symbols
+          if y > 4 then
+            reelsMonitor.setBackgroundColor(colors.white)
+            reelsMonitor.setCursorPos(x,y - 1)
+            reelsMonitor.write("   ")
+          end
         end
       end
-      os.sleep(.08) -- what???
+      os.sleep(.08) -- Wait for a moment before drawing the next frame
     end
-    r2 = r1
-    r1 = getRandomSymbols(frameNumber)
-    if frameNumber>0 and frameNumber%5 == 0 then
-      if ((frameNumber == 15) and (reelResult[1] == reelResult[2] and reelResult[2] == reelResult[3])) or (reelResult[math.floor(frameNumber/5)] == 1) then
+    -- Move the layer down, and then load in a new one
+    reelCache[2] = reelCache[1]
+    reelCache[1] = getRandomSymbols(animationRow)
+
+    if animationRow > 0 and animationRow % 5 == 0 then -- This is the situation where one of the reels just stopped on a symbol
+      if ((animationRow == 15) and (reelResult[1] == reelResult[2] and reelResult[2] == reelResult[3])) or (reelResult[math.floor(animationRow/5)] == 1) then
         --s2.playSound("entity.experience_orb.pickup",.5,1.2)
       end
     --s.playSound("entity.experience_orb.pickup",.5,.5)
@@ -190,4 +190,4 @@ local function dospin()
     end
   end
 end
-dospin()
+animateSpin()
