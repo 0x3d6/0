@@ -1,16 +1,20 @@
 local reelsMonitor = term
 
-if ccemux then
-  reelsMonitor.setTextScale = function() end
-else
+if not ccemux then
   if peripheral.find("top") then
     reelsMonitor = peripheral.wrap("top")
+    reelsMonitor.setTextScale(.5)
   end
 end
 
 local symbols = require("config")
 local symbolsList = {}
 local symbolCount = 0
+
+local config = {}
+config.extraSpinTime = 5
+
+local reelResult = {"SEVEN", "SEVEN", "SEVEN"}
 
 local function checkBlitSanity(blitLine)
   assert(#blitLine == 3, "Symbol lines must have 3 arguments for term.blit")
@@ -54,21 +58,13 @@ local m2 = peripheral.wrap("monitor_3131")
 -- </silliness>
 
 
-
-
-
-
-
-
-
-
-local function drawSymbol(symbolType,fr)
-  symbolType = symbolsList[symbolType] -- this is temporary i swear
+local function drawSymbol(symbolType)
+  --symbolType = symbolsList[symbolType] -- this is temporary i swear
 
   -- Fall back to an "error" symbol if we somehow got one that doesn't exist
   local symbol = symbols[symbolType] or {
     {"???","eee","000"},
-    {symbolType.sub(1,3),"000","eee"}
+    {symbolType:sub(1,3),"000","eee"}
   }
 
   for idx = 1, 2 do
@@ -91,9 +87,10 @@ m2.setTextScale(.5)
 m2.setBackgroundColor(colors.white)
 m2.clear()
 m2.setCursorPos(1,38)
-m2.write("Please stay behind this line when someone else is playing")]]
+m2.write("Please stay behind this line when someone else is playing")
+  ]]
 
-reelsMonitor.setTextScale(.5)
+
 local function clearLineAt(y,isShort)
   local oldX, oldY = reelsMonitor.getCursorPos()
   reelsMonitor.setCursorPos(1, y)
@@ -104,6 +101,7 @@ local function clearLineAt(y,isShort)
   end
   reelsMonitor.setCursorPos(oldX, oldY)
 end
+
 local function drawBorders()
   reelsMonitor.setBackgroundColor(colors.white)
   reelsMonitor.clear()
@@ -115,71 +113,81 @@ local function drawBorders()
   clearLineAt(9)
   reelsMonitor.setBackgroundColor(colors.gray)
   clearLineAt(1)
-  for idx = 2, 10 do
-    reelsMonitor.setCursorPos(1, idx)
+  for y = 2, 10 do
+    reelsMonitor.setCursorPos(1, y)
     reelsMonitor.write(" ")
-    reelsMonitor.setCursorPos(15, idx)
+    reelsMonitor.setCursorPos(15, y)
     reelsMonitor.write(" ")
   end
   reelsMonitor.clearLine()
 end
+
 local function clearReels()
-  for idx = 4, 7 do
-    reelsMonitor.setCursorPos(2, idx)
-    sbg(colors.white)
-    stc(colors.lightGray)
-    w("\149   |   |   ")
-    stc(colors.white)
-    sbg(colors.lightGray)
-    w("\149")
+  for y = 4, 7 do
+    reelsMonitor.setCursorPos(2, y)
+
+    reelsMonitor.setBackgroundColor(colors.white)
+    reelsMonitor.setTextColor(colors.lightGray)
+    reelsMonitor.write("\149   |   |   ")
+
+    reelsMonitor.setBackgroundColor(colors.lightGray)
+    reelsMonitor.setTextColor(colors.white)
+    reelsMonitor.write("\149")
   end
 end
+
 drawBorders()
 clearReels()
-local function rand(fr)
-  local a, b, c
-  if fr >= 4 then a = final[1] else a = math.random(8) end
-  if fr >= 9 then b = final[2] else b = math.random(8) end
-  if fr >= 14 then c = final[3] else c = math.random(8) end
-  return {a,b,c}
+
+local function getRandomSymbols(frameNumber)
+  local symbolOutput = {}
+  local landedSymbols = math.floor((frameNumber + 1) / 5) -- The number of symbols that have now stopped moving
+
+  for idx = 1, 3 do -- We need to pick a symbol for each of the three reels
+    if idx > landedSymbols then
+      table.insert(symbolOutput, symbolsList[math.random(symbolCount)]) -- Throw in a random symbol, we won't land on this one
+    else
+      table.insert(symbolOutput, reelResult[idx]) -- This is it! We need to get the symbol that we're supposed to land on
+    end
+  end
+
+  return symbolOutput
 end
 --os.sleep(5)
-local function dospin()
 --modem.open(os.getComputerID())
 --modem.transmit(1,os.getComputerID(),"64 iron")
 --local _, _, _, _, msg = os.pullEvent("modem_message")
-msg = "111"
 --modem.close(os.getComputerID())
-final = {tonumber(msg:sub(1,1)),tonumber(msg:sub(2,2)),tonumber(msg:sub(3,3))}
-r1 = rand(0)
-r2 = rand(0)
-for k=-5,16 do
-for f=-2,0 do
-  clearReels()
-  --if f == 0 then r2 = {2,2,2} end
-  for i=1,3 do
-    if k > 5*i then
-      m.setCursorPos(4*i-1,5)
-      drawSymbol(r1[i],0)
+local function dospin()
+  local r1 = getRandomSymbols(0)
+  local r2 = getRandomSymbols(0)
+  for frameNumber = 0 - config.extraSpinTime, 16 do
+    for f=-2,0 do
+      clearReels()
+      --if f == 0 then r2 = {2,2,2} end
+      for i=1,3 do
+        if frameNumber > 5*i then
+          m.setCursorPos(4*i-1,5)
+          drawSymbol(r1[i])
+        else
+        m.setCursorPos(4*i-1,5+f)
+        drawSymbol(r1[i])
+        m.setCursorPos(4*i-1,5+f+3)
+        drawSymbol(r2[i])
+        end
+      end
+      os.sleep(.08) -- what???
+    end
+    r2 = r1
+    r1 = getRandomSymbols(frameNumber)
+    if frameNumber>0 and frameNumber%5 == 0 then
+      if ((frameNumber == 15) and (reelResult[1] == reelResult[2] and reelResult[2] == reelResult[3])) or (reelResult[math.floor(frameNumber/5)] == 1) then
+        --s2.playSound("entity.experience_orb.pickup",.5,1.2)
+      end
+    --s.playSound("entity.experience_orb.pickup",.5,.5)
     else
-    m.setCursorPos(4*i-1,5+f)
-    drawSymbol(r1[i],0)
-    m.setCursorPos(4*i-1,5+f+3)
-    drawSymbol(r2[i],0)
+    --s.playNote("piano",1)
     end
   end
-  os.sleep(.08) -- what???
-end
-r2 = r1
-r1 = rand(k)
-if k>0 and k%5 == 0 then
-if ((k == 15) and (final[1] == final[2] and final[2] == final[3])) or (final[math.floor(k/5)] == 1) then
-  --s2.playSound("entity.experience_orb.pickup",.5,1.2)
-end
---s.playSound("entity.experience_orb.pickup",.5,.5)
-else
---s.playNote("piano",1)
-end
-end
 end
 dospin()
