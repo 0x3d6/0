@@ -1,15 +1,46 @@
-local gamemon = term
+local reelsMonitor = term
 
 if ccemux then
-  gamemon.setTextScale = function() end
+  reelsMonitor.setTextScale = function() end
 else
   if peripheral.find("top") then
-    gamemon = peripheral.wrap("top")
+    reelsMonitor = peripheral.wrap("top")
   end
 end
 
+local symbols = require("config")
+local symbolsList = {}
+local symbolCount = 0
+
+local function checkBlitSanity(blitLine)
+  assert(#blitLine == 3, "Symbol lines must have 3 arguments for term.blit")
+
+  for idx, symbolText in pairs(blitLine) do
+    assert(type(symbolText) == "string", "Symbol lines must be composed of three blit valid strings")
+    assert(#symbolText == 3, "Symbols must be 3 characters wide")
+    if (idx > 1) then -- The first argument to blit doesn't need to be hex
+      assert(symbolText:find("^[0-9a-f]+$"), "Last two blit arguments need to be hex codes")
+    end
+  end
+end
+
+for symbolName, symbol in pairs(symbols) do
+  -- Just really quick make sure these symbols are valid (3 chars wide, 2 high)
+  assert(#symbol == 2, "Symbols must be 2 lines")
+  for _, blitLine in pairs(symbol) do
+    checkBlitSanity(blitLine)
+  end
+
+  table.insert(symbolsList, symbolName) -- Add it to the list of symbols to use in the animation
+  symbolCount = symbolCount + 1
+end
+
+assert(symbolCount > 1, "Not enough symbols") -- A game of chance would not be possible if only one symbol is defined
 
 
+
+
+-- <silliness>
 local m = term
 if peripheral.find("top") then m = peripheral.wrap("top") end
 local stc = m.setTextColor
@@ -20,169 +51,81 @@ local s = peripheral.wrap("right")
 local s2 =peripheral.wrap("left")
 local modem = peripheral.wrap("bottom")
 local m2 = peripheral.wrap("monitor_3131")
-local function sym(a,fr)
-  local function obc()
-    local _, y = m.getCursorPos()
-    if y < 4 or y > 7 then
-      w = function(a) end
-    else
-      w = m.write
+-- </silliness>
+
+
+
+
+
+
+
+
+
+
+local function drawSymbol(symbolType,fr)
+  symbolType = symbolsList[symbolType] -- this is temporary i swear
+
+  -- Fall back to an "error" symbol if we somehow got one that doesn't exist
+  local symbol = symbols[symbolType] or {
+    {"???","eee","000"},
+    {symbolType.sub(1,3),"000","eee"}
+  }
+
+  for idx = 1, 2 do
+    local x, y = reelsMonitor.getCursorPos()
+
+    if y >= 4 and y <= 7 then
+      reelsMonitor.blit(unpack(symbol[idx])) -- Draw the three characters of this line of the cute little symbol
+    end
+
+    if idx == 1 then -- If we just drew the first line,
+      reelsMonitor.setCursorPos(x-(x-3)%4,y+1) -- Go to the beginning of the next line
     end
   end
-  local function l()
-    local x, y = m.getCursorPos()
-    m.setCursorPos(x-(x-3)%4,y+1)
-    obc()
-  end
-  local function l2()
-    l()
-  end
-  obc()
-  if a == 1 then
-    stc(c.red)
-    sbg(c.white)
-    w("\159\131")
-    sbg(c.red)
-    stc(c.white)
-    w(" ")
-    l2()
-    w("\159\129")
-    stc(c.red)
-    sbg(c.white)
-    w("\145")
-  elseif a == 2 then
-    stc(c.yellow)
-    sbg(c.black)
-    w("\151\131")
-    stc(c.black)
-    sbg(c.yellow)
-    w("\148")
-    l2()
-    w("\130\131\129")
-  elseif a == 3 then
-    sbg(c.white)
-    stc(c.cyan)
-    w("\130")
-    stc(c.white)
-    sbg(c.cyan)
-    w("\156\155")
-    l2()
-    sbg(c.white)
-    stc(colors.brown)
-    w("\152\129")
-    stc(c.cyan)
-    w("\138")
-  elseif a == 4 then
-    sbg(c.yellow)
-    stc(c.white)
-    w("\151 ")
-    stc(c.yellow)
-    sbg(c.white)
-    w("\148")
-    l2()
-    w("\142")
-    sbg(c.orange)
-    w("\143")
-    sbg(c.white)
-    w("\141")
-  elseif a == 5 then
-    sbg(colors.orange)
-    stc(c.brown)
-    w("\140")
-    sbg(c.lightGray)
-    stc(c.orange)
-    w("\131")
-    sbg(c.orange)
-    stc(c.brown)
-    w("\140")
-    l2()
-    w("   ")
-  elseif a == 6 then
-    sbg(c.white)
-    stc(c.green)
-    w("\130\153\144")
-    l2()
-    stc(c.red)
-    w("\138\133")
-    stc(c.green)
-    sbg(c.red)
-    w("\131")
-  elseif a == 7 then
-    sbg(c.yellow)
-    stc(c.white)
-    w("\135\131")
-    stc(c.green)
-    w("\139")
-    l2()
-    sbg(c.white)
-    stc(c.yellow)
-    w("\139\143\135")
-  elseif a == 8 then
-    sbg(colors.purple)
-    stc(colors.white)
-    w("\159")
-    sbg(c.magenta)
-    stc(c.green)
-    w("\143")
-    sbg(c.green)
-    stc(c.white)
-    w("\137")
-    l2()
-    sbg(c.magenta)
-    stc(c.purple)
-    w("\153\153")
-    sbg(c.white)
-    w("\129")
-  else
-    sbg(c.white)
-    stc(c.red)
-    w("???")
-    l2()
-    sbg(c.red)
-    stc(c.white)
-    w(a)
-  end
-  w = m.write
-end--[[
+
+  -- We're not going to put the cursor back where it was before this call
+end
+
+--[[
 m2.setTextScale(.5)
 m2.setBackgroundColor(colors.white)
 m2.clear()
 m2.setCursorPos(1,38)
 m2.write("Please stay behind this line when someone else is playing")]]
 
-gamemon.setTextScale(.5)
+reelsMonitor.setTextScale(.5)
 local function clearLineAt(y,isShort)
-  local oldX, oldY = gamemon.getCursorPos()
-  gamemon.setCursorPos(1, y)
+  local oldX, oldY = reelsMonitor.getCursorPos()
+  reelsMonitor.setCursorPos(1, y)
   if isShort then
-    gamemon.write((" "):rep(14))
+    reelsMonitor.write((" "):rep(14))
   else
-    gamemon.clearLine()
+    reelsMonitor.clearLine()
   end
-  gamemon.setCursorPos(oldX, oldY)
+  reelsMonitor.setCursorPos(oldX, oldY)
 end
 local function drawBorders()
-  gamemon.setBackgroundColor(colors.white)
-  gamemon.clear()
-  gamemon.setBackgroundColor(colors.lightGray)
-  gamemon.setTextColor(colors.black)
+  reelsMonitor.setBackgroundColor(colors.white)
+  reelsMonitor.clear()
+  reelsMonitor.setBackgroundColor(colors.lightGray)
+  reelsMonitor.setTextColor(colors.black)
   clearLineAt(2, true)
   clearLineAt(3)
   clearLineAt(8, true)
   clearLineAt(9)
-  gamemon.setBackgroundColor(colors.gray)
+  reelsMonitor.setBackgroundColor(colors.gray)
   clearLineAt(1)
   for idx = 2, 10 do
-    gamemon.setCursorPos(1, idx)
-    gamemon.write(" ")
-    gamemon.setCursorPos(15, idx)
-    gamemon.write(" ")
+    reelsMonitor.setCursorPos(1, idx)
+    reelsMonitor.write(" ")
+    reelsMonitor.setCursorPos(15, idx)
+    reelsMonitor.write(" ")
   end
-  gamemon.clearLine()
+  reelsMonitor.clearLine()
 end
 local function clearReels()
   for idx = 4, 7 do
-    gamemon.setCursorPos(2, idx)
+    reelsMonitor.setCursorPos(2, idx)
     sbg(colors.white)
     stc(colors.lightGray)
     w("\149   |   |   ")
@@ -217,15 +160,15 @@ for f=-2,0 do
   for i=1,3 do
     if k > 5*i then
       m.setCursorPos(4*i-1,5)
-      sym(r1[i],0)
+      drawSymbol(r1[i],0)
     else
     m.setCursorPos(4*i-1,5+f)
-    sym(r1[i],0)
+    drawSymbol(r1[i],0)
     m.setCursorPos(4*i-1,5+f+3)
-    sym(r2[i],0)
+    drawSymbol(r2[i],0)
     end
   end
-  os.sleep(.08)
+  os.sleep(.08) -- what???
 end
 r2 = r1
 r1 = rand(k)
