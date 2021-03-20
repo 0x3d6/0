@@ -1,9 +1,31 @@
 local reelsMonitor = term
 
+-- Print subtitles out of bounds (would be visible if we aren't using a monitor) in case we don't have speakers
+local leftSpeaker = {
+  playSound = function()
+    term.setTextColor(colors.purple)
+    term.setCursorPos(1, 11)
+    print("*Ding*!")
+  end
+}
+local rightSpeaker = {
+  playSound = function()
+    term.setTextColor(colors.purple)
+    term.setCursorPos(9, 11)
+    print("*DING*!")
+  end
+}
+
 if not ccemux then
   if peripheral.find("top") then
     reelsMonitor = peripheral.wrap("top")
     reelsMonitor.setTextScale(.5)
+  end
+  if peripheral.find("left") then
+    leftSpeaker = peripheral.wrap("left")
+  end
+  if peripheral.find("right") then
+    rightSpeaker = peripheral.wrap("right")
   end
 end
 
@@ -44,9 +66,6 @@ assert(config.extraSpinTime >= -4, "extraSpinTime is too low")
 
 
 -- <silliness>
-local c = colors
-local s = peripheral.wrap("right")
-local s2 =peripheral.wrap("left")
 local modem = peripheral.wrap("bottom")
 local m2 = peripheral.wrap("monitor_3131")
 -- </silliness>
@@ -85,7 +104,7 @@ m2.write("Please stay behind this line when someone else is playing")
   ]]
 
 
-local function clearLineAt(y,isShort)
+local function clearLineAt(y, isShort)
   local oldX, oldY = reelsMonitor.getCursorPos()
   reelsMonitor.setCursorPos(1, y)
   if isShort then
@@ -152,7 +171,7 @@ local function animateSpin()
   local reelCache = {getRandomSymbols(0), getRandomSymbols(0)}
 
   for animationRow = 0 - config.extraSpinTime, 16 do -- We're looping over "rows" of symbols that slide down the screen
-    for frame=-2,0 do
+    for frame = 0, 2 do
       for symbolInstance = 1, 6 do -- We can have up to six symbols on the screen at once
         -- Determine which column and layer this symbol belongs to
         local column = (symbolInstance - 1) % 3 + 1
@@ -160,8 +179,8 @@ local function animateSpin()
 
         -- And get the exact coordinates from that information
         local x = 4 * column - 1
-        local y = 3 * layer + frame + 2
-        reelsMonitor.setCursorPos(x,y)
+        local y = 3 * layer + frame
+        reelsMonitor.setCursorPos(x, y)
 
         if animationRow <= 5 * column then -- Stop animating this column when we stop on a symbol!
           drawSymbol(reelCache[layer][column])
@@ -169,12 +188,13 @@ local function animateSpin()
           -- Erase the little spaces in between the symbols
           if y > 4 then
             reelsMonitor.setBackgroundColor(colors.white)
-            reelsMonitor.setCursorPos(x,y - 1)
+            reelsMonitor.setCursorPos(x, y - 1)
             reelsMonitor.write("   ")
           end
         end
       end
       os.sleep(.08) -- Wait for a moment before drawing the next frame
+      clearLineAt(11) -- Erase the subtitles we drew if we didn't have speakers
     end
     -- Move the layer down, and then load in a new one
     reelCache[2] = reelCache[1]
@@ -182,11 +202,11 @@ local function animateSpin()
 
     if animationRow > 0 and animationRow % 5 == 0 then -- This is the situation where one of the reels just stopped on a symbol
       if ((animationRow == 15) and (reelResult[1] == reelResult[2] and reelResult[2] == reelResult[3])) or (reelResult[math.floor(animationRow/5)] == 1) then
-        --s2.playSound("entity.experience_orb.pickup",.5,1.2)
+        rightSpeaker.playSound("entity.experience_orb.pickup",.5,1.2)
       end
-    --s.playSound("entity.experience_orb.pickup",.5,.5)
+      leftSpeaker.playSound("entity.experience_orb.pickup",.5,.5)
     else
-    --s.playNote("piano",1)
+      --leftSpeaker.playNote("piano",1)
     end
   end
 end
