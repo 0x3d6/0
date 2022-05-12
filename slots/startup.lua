@@ -1,4 +1,4 @@
-local reelsMonitor = term
+require("../common")
 
 -- Print subtitles out of bounds (would be visible if we aren't using a monitor) in case we don't have speakers
 local leftSpeaker = {
@@ -16,22 +16,16 @@ local rightSpeaker = {
   end
 }
 
-if not ccemux then
-  if peripheral.find("top") then
-    reelsMonitor = peripheral.wrap("top")
-    reelsMonitor.setTextScale(.5)
-  end
-  if peripheral.find("left") then
-    leftSpeaker = peripheral.wrap("left")
-  end
-  if peripheral.find("right") then
-    rightSpeaker = peripheral.wrap("right")
-  end
+local reelsMonitor = Display("top", .5) or (ccemux and Display(term) or panic())
+if peripheral.find("left") then
+  leftSpeaker = peripheral.wrap("left")
+end
+if peripheral.find("right") then
+  rightSpeaker = peripheral.wrap("right")
 end
 
-local configTable = require("config")
-local config = configTable[1]
-local symbols = configTable[2]
+local config = require("config")
+local symbols = config.symbols
 local symbolsList = {}
 local symbolCount = 0
 
@@ -103,29 +97,17 @@ m2.setCursorPos(1,38)
 m2.write("Please stay behind this line when someone else is playing")
   ]]
 
-
-local function clearLineAt(y, isShort)
-  local oldX, oldY = reelsMonitor.getCursorPos()
-  reelsMonitor.setCursorPos(1, y)
-  if isShort then
-    reelsMonitor.write((" "):rep(14))
-  else
-    reelsMonitor.clearLine()
-  end
-  reelsMonitor.setCursorPos(oldX, oldY)
-end
-
 local function drawBorders()
   reelsMonitor.setBackgroundColor(colors.white)
   reelsMonitor.clear()
   reelsMonitor.setBackgroundColor(colors.lightGray)
   reelsMonitor.setTextColor(colors.black)
-  clearLineAt(2, true)
-  clearLineAt(3)
-  clearLineAt(8, true)
-  clearLineAt(9)
+  reelsMonitor.clearLineAt(2, 14)
+  reelsMonitor.clearLineAt(3)
+  reelsMonitor.clearLineAt(8, 14)
+  reelsMonitor.clearLineAt(9)
   reelsMonitor.setBackgroundColor(colors.gray)
-  clearLineAt(1)
+  reelsMonitor.clearLineAt(1)
   for y = 2, 10 do
     reelsMonitor.setCursorPos(1, y)
     reelsMonitor.write(" ")
@@ -194,7 +176,7 @@ local function animateSpin()
         end
       end
       os.sleep(.08) -- Wait for a moment before drawing the next frame
-      clearLineAt(11) -- Erase the subtitles we drew if we didn't have speakers
+      reelsMonitor.clearLineAt(11) -- Erase the subtitles we drew if we didn't have speakers
     end
     -- Move the layer down, and then load in a new one
     reelCache[2] = reelCache[1]
